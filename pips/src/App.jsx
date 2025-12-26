@@ -145,11 +145,14 @@ export default function App() {
       const won = checkCompletion(board, gameState.placements);
       if (won) setGameState((prev) => ({ ...prev, isComplete: true }));
     } else {
+      // BOUNCE BACK to last known good state
       const lastGoodRot =
         lastValidRotationRef.current[activePieceId] !== undefined
           ? lastValidRotationRef.current[activePieceId]
           : 0;
 
+      // If lastGoodRot is actually 0, it means it never had a valid board rotation,
+      // or 0 was the valid one.
       setGameState((prev) => ({
         ...prev,
         placements: prev.placements.map((p) =>
@@ -292,7 +295,6 @@ export default function App() {
         const { id, fromBoard } = dragStartPos.current;
 
         if (fromBoard) {
-          // CLICK ON BOARD -> ROTATE
           const placement = gameState.placements.find((p) => p.dominoId === id);
 
           if (activePieceId !== id) {
@@ -311,9 +313,14 @@ export default function App() {
               ...prev,
               placements: updatedPlacements,
             }));
+
+            // UPDATED LOGIC: If this new rotation is valid, save it immediately!
+            // This ensures "Bounce Back" goes to the most recent valid spot.
+            if (isValidPosition(placement.r, placement.c, newRotation, id)) {
+              lastValidRotationRef.current[id] = newRotation;
+            }
           }
         } else {
-          // CLICK ON TRAY
           setTrayRotations((prev) => ({ ...prev, [id]: (prev[id] || 0) + 90 }));
         }
       }
@@ -330,21 +337,15 @@ export default function App() {
     ]
   );
 
-  // --- UPDATED: Background Click Logic ---
   const handleBackgroundClick = () => {
-    // 1. Commit active board piece
     commitActivePiece(null);
-
-    // 2. Reset TRAY vertical pieces to nearest horizontal
     setTrayRotations((prev) => {
       const next = { ...prev };
       Object.keys(next).forEach((key) => {
         const rot = next[key];
-        // If vertical (90, 270, 450...), subtract 90 to get previous horizontal
         if (rot % 180 !== 0) {
           next[key] = rot - 90;
         }
-        // If horizontal (0, 180...), leave it alone
       });
       return next;
     });
@@ -352,17 +353,11 @@ export default function App() {
 
   const handleRemove = (id) => {
     if (gameState.isComplete) return;
-
-    const placement = gameState.placements.find((p) => p.dominoId === id);
-    const rot = placement ? placement.rotation : 0;
-
     setGameState((prev) => ({
       ...prev,
       placements: prev.placements.filter((p) => p.dominoId !== id),
     }));
-
-    setTrayRotations((prev) => ({ ...prev, [id]: rot }));
-
+    setTrayRotations((prev) => ({ ...prev, [id]: 0 }));
     if (activePieceId === id) setActivePieceId(null);
   };
 
@@ -390,6 +385,7 @@ export default function App() {
       className="min-h-screen bg-[#fffaf5] text-slate-800 flex flex-col font-sans"
       onClick={handleBackgroundClick}
     >
+      {/* ... Header and Main Content remain same, ensure GameBoard is rendered ... */}
       <header className="px-6 py-5 flex items-center justify-between sticky top-0 z-30 bg-[#fffaf5]/90 backdrop-blur-sm">
         <div className="flex flex-col">
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
