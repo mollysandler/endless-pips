@@ -120,7 +120,6 @@ export default function App() {
     return !collision;
   };
 
-  // --- LOGIC: Commit Active Piece ---
   const commitActivePiece = (clickedId = null) => {
     if (activePieceId && clickedId === activePieceId) return;
     if (!activePieceId) return;
@@ -164,9 +163,7 @@ export default function App() {
   const handleMouseDown = (e, id, fromBoard) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-
     commitActivePiece(id);
-
     dragStartPos.current = { x: e.clientX, y: e.clientY, id, fromBoard };
   };
 
@@ -216,7 +213,7 @@ export default function App() {
 
   const handleMouseUp = useCallback(
     (e) => {
-      // --- DRAG END ---
+      // --- CASE A: DRAG END ---
       if (draggingDominoId && board) {
         const boardContainer = document.querySelector("[data-board-container]");
         let placed = false;
@@ -226,6 +223,7 @@ export default function App() {
           const relativeX = e.clientX - rect.left;
           const relativeY = e.clientY - rect.top;
 
+          // Expanded hit area
           const isInsideBoard =
             relativeX >= -50 &&
             relativeX <= rect.width + 50 &&
@@ -236,16 +234,32 @@ export default function App() {
             const cellW = rect.width / board.cols;
             const cellH = rect.height / board.rows;
             const isVert = dragRotation % 180 !== 0;
+
+            // Calculate Top-Left of the BOUNDING BOX
             const pieceW = isVert ? cellW : cellW * 2;
             const pieceH = isVert ? cellH * 2 : cellH;
             const topLeftX = relativeX - pieceW / 2;
             const topLeftY = relativeY - pieceH / 2;
-            const c = Math.round(topLeftX / cellW);
-            const r = Math.round(topLeftY / cellH);
+
+            let c = Math.round(topLeftX / cellW);
+            let r = Math.round(topLeftY / cellH);
+
+            // --- CRITICAL FIX: ADJUST FOR ROTATION ---
+            // The validity check expects (r,c) to be the "Head" cell.
+            // But we just calculated the Top-Left of the bounding box.
+            const normRot = ((dragRotation % 360) + 360) % 360;
+
+            if (normRot === 180) {
+              // Bounding box is [Tail][Head]. TopLeft is Tail. Head is +1 col.
+              c += 1;
+            } else if (normRot === 270) {
+              // Bounding box is [Tail] over [Head]. TopLeft is Tail. Head is +1 row.
+              r += 1;
+            }
 
             if (isValidPosition(r, c, dragRotation, draggingDominoId)) {
               placed = true;
-              const normalizedRotation = ((dragRotation % 360) + 360) % 360;
+              const normalizedRotation = normRot;
 
               const newPlacement = {
                 dominoId: draggingDominoId,
@@ -271,15 +285,11 @@ export default function App() {
           }
         }
 
-        // --- DROP FAILED / DRAGGED OUT ---
         if (!placed) {
           const wasFromBoard = dragStartPos.current?.fromBoard;
-
           if (wasFromBoard) {
-            // If it came from the board, reset to starting position (0)
             setTrayRotations((prev) => ({ ...prev, [draggingDominoId]: 0 }));
           } else {
-            // If it came from the tray, keep its current rotation
             const currentRot = ((dragRotation % 360) + 360) % 360;
             setTrayRotations((prev) => ({
               ...prev,
@@ -291,7 +301,7 @@ export default function App() {
         setDraggingDominoId(null);
       }
 
-      // --- CLICK (ROTATE) ---
+      // --- CASE B: CLICK (ROTATE) ---
       else if (dragStartPos.current) {
         const { id, fromBoard } = dragStartPos.current;
 
@@ -316,7 +326,6 @@ export default function App() {
             }));
           }
         } else {
-          // CLICK ON TRAY
           setTrayRotations((prev) => ({ ...prev, [id]: (prev[id] || 0) + 90 }));
         }
       }
@@ -335,7 +344,6 @@ export default function App() {
 
   const handleBackgroundClick = () => {
     commitActivePiece(null);
-    // Do NOT clear tray rotations here, so "rotated in tray" state persists
   };
 
   const handleRemove = (id) => {
@@ -344,7 +352,6 @@ export default function App() {
       ...prev,
       placements: prev.placements.filter((p) => p.dominoId !== id),
     }));
-    // Forced remove (e.g. bounce back from invalid board placement) -> Reset to 0
     setTrayRotations((prev) => ({ ...prev, [id]: 0 }));
     if (activePieceId === id) setActivePieceId(null);
   };
