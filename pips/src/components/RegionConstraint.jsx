@@ -2,12 +2,13 @@ import React from "react";
 
 // Same exact palette as GameBoard
 const PALETTE = {
-  purple: "#8e6ead",
-  pink: "#d9416a",
-  teal: "#468fa3",
-  orange: "#d4822f",
-  navy: "#1f407a",
-  green: "#5d7616",
+  purple: "#8e70a6",
+  pink: "#dc4c6e",
+  teal: "#428793",
+  orange: "#d18136",
+  navy: "#2c4f8f",
+  green: "#637d23",
+  neutral: "#c8beb5",
 };
 
 export const RegionConstraint = ({ constraint, theme }) => {
@@ -34,7 +35,6 @@ export const RegionConstraint = ({ constraint, theme }) => {
       break;
   }
 
-  // Get the opaque color
   const bgHex = PALETTE[theme] || "#a89b90";
 
   return (
@@ -48,13 +48,13 @@ export const RegionConstraint = ({ constraint, theme }) => {
       {/* Shadow */}
       <div className="absolute inset-0 bg-black/10 rounded-lg transform rotate-45 translate-y-0.5 translate-x-0.5" />
 
-      {/* Diamond Shape - Solid Color */}
+      {/* Diamond */}
       <div
         className="absolute inset-0 rounded-lg shadow-sm border-2 border-white transform rotate-45"
         style={{ backgroundColor: bgHex }}
       />
 
-      {/* Text - White */}
+      {/* Text */}
       <span className="relative text-white font-black text-xs tracking-tighter shadow-black drop-shadow-md">
         {text}
       </span>

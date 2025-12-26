@@ -1,19 +1,23 @@
 import React from "react";
 import { RegionConstraint } from "./RegionConstraint";
 import { DominoPiece } from "./DominoPiece";
+import { DashedBorder } from "./DashedBorder";
 
+// Colors from reference
 const regionStyles = {
-  purple: { bg: "bg-[#c4b2ce]", border: "border-[#8e7b9b]" },
-  pink: { bg: "bg-[#eab0bb]", border: "border-[#c47e8e]" },
-  teal: { bg: "bg-[#a9cdce]", border: "border-[#6b9ea0]" },
-  orange: { bg: "bg-[#e8cda1]", border: "border-[#c7a672]" },
-  navy: { bg: "bg-[#b3c7e6]", border: "border-[#7a9cc6]" },
-  green: { bg: "bg-[#c8d4a1]", border: "border-[#5d7616]" },
-  // NEW NEUTRAL STYLE (Wildcard)
-  neutral: { bg: "bg-[#e3d0bf]", border: "border-[#d1c4b5]" },
+  purple: { bg: "#c5b4cc", border: "#886ea8" },
+  pink: { bg: "#e8acb9", border: "#d94568" },
+  teal: { bg: "bg-[#a3c3c7]", border: "#408591" },
+  orange: { bg: "#e6ceab", border: "#d18035" },
+  navy: { bg: "#b3c7e6", border: "#2c4f8f" },
+  green: { bg: "#c8d4a1", border: "#627d22" },
+  neutral: { bg: "#e6d5c6", border: "none" }, // Neutral matches the base board
 };
 
-const defaultStyle = { bg: "bg-[#dcd0c5]", border: "border-[#a89b90]" };
+const defaultStyle = { bg: "#dcd0c5", border: "#a89b90" };
+
+// The color of the "Physical Board" underneath the regions
+const BOARD_BASE_COLOR = "#e6d5c6";
 
 export const GameBoard = ({
   board,
@@ -47,54 +51,48 @@ export const GameBoard = ({
         {Array.from({ length: board.rows }).map((_, r) =>
           Array.from({ length: board.cols }).map((_, c) => {
             const region = getRegionAt(r, c);
+
+            // 1. VOID: No board here
             if (!board.gridShape[r][c] || !region) {
               return (
                 <div key={`${r}-${c}`} className="w-full h-full invisible" />
               );
             }
+
             const rid = region.id;
+            const theme = regionStyles[region.colorTheme] || defaultStyle;
+            const isNeutral = region.colorTheme === "neutral";
+
+            // 2. NEIGHBOR CHECKS
             const sameTop = isSameRegion(r - 1, c, rid);
             const sameBottom = isSameRegion(r + 1, c, rid);
             const sameLeft = isSameRegion(r, c - 1, rid);
             const sameRight = isSameRegion(r, c + 1, rid);
 
-            const theme = regionStyles[region.colorTheme] || defaultStyle;
+            // 3. PADDING / GUTTER LOGIC
+            // If neighbor is different, we add a small padding to reveal the "Base Board" underneath.
+            // This creates the separation lines.
+            const gapSize = "2px";
+            const paddingStyle = {
+              paddingTop: sameTop ? "0" : gapSize,
+              paddingBottom: sameBottom ? "0" : gapSize,
+              paddingLeft: sameLeft ? "0" : gapSize,
+              paddingRight: sameRight ? "0" : gapSize,
+            };
 
-            const roundedClasses = [
-              !sameTop && !sameLeft ? "rounded-tl-[1rem]" : "",
-              !sameTop && !sameRight ? "rounded-tr-[1rem]" : "",
-              !sameBottom && !sameLeft ? "rounded-bl-[1rem]" : "",
-              !sameBottom && !sameRight ? "rounded-br-[1rem]" : "",
-            ].join(" ");
-
-            const borderColorHex = theme.border.match(/#\w+/)?.[0] || "#999";
-
-            // --- BORDER LOGIC ---
-            // Neutral regions look solid/recessed, others are dashed
-            const borderType =
-              region.colorTheme === "neutral" ? "solid" : "dashed";
-
-            // For neutral, we can make the border slightly thinner or match background to look like a solid block
-            const borderWidth = region.colorTheme === "neutral" ? "1px" : "3px";
-            const customBorder = `${borderWidth} ${borderType} ${borderColorHex}`;
-
-            // For neutral, use opaque background. For others, use transparent.
-            const bgColor =
-              region.colorTheme === "neutral"
-                ? borderColorHex // Use the border color as the solid fill for neutral (looks like beige block)
-                : `${borderColorHex}4D`; // 30% opacity for colored regions
-
-            const styles = {
-              backgroundColor: bgColor,
-              borderTop: !sameTop ? customBorder : "0",
-              borderBottom: !sameBottom ? customBorder : "0",
-              borderLeft: !sameLeft ? customBorder : "0",
-              borderRight: !sameRight ? customBorder : "0",
+            // 4. ROUNDING LOGIC (For the colored patch)
+            const radius = "10px";
+            const roundedStyle = {
+              borderTopLeftRadius: !sameTop && !sameLeft ? radius : "0",
+              borderTopRightRadius: !sameTop && !sameRight ? radius : "0",
+              borderBottomLeftRadius: !sameBottom && !sameLeft ? radius : "0",
+              borderBottomRightRadius: !sameBottom && !sameRight ? radius : "0",
             };
 
             const isLabelCell =
               region.labelPosition?.r === r && region.labelPosition?.c === c;
 
+            // 5. OCCUPANCY (For socket shadow)
             const isOccupied = placements.some((p) => {
               const rot = ((p.rotation % 360) + 360) % 360;
               if (p.r === r && p.c === c) return true;
@@ -108,26 +106,88 @@ export const GameBoard = ({
             return (
               <div
                 key={`${r}-${c}`}
-                className={`relative w-full h-full box-border ${roundedClasses}`}
-                style={styles}
+                className="relative w-full h-full box-border"
+                style={{
+                  // The "Base Board" color fills the entire cell slot
+                  backgroundColor: BOARD_BASE_COLOR,
+                  // If this cell is a corner of the WHOLE board, we might want to round the base too?
+                  // For now, let's keep the base square-ish to act as the grout,
+                  // or simple rounding:
+                  borderRadius: "4px",
+                }}
               >
-                {!isOccupied && (
-                  <div className="absolute inset-1 rounded-lg bg-black/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
+                {/* 
+                   THE REGION OVERLAY 
+                   This div shrinks based on paddingStyle to reveal the base color 
+                   when next to a different region.
+                */}
+                <div
+                  className="w-full h-full relative"
+                  style={{
+                    ...paddingStyle,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <div
+                    className="w-full h-full relative"
+                    style={{
+                      // For neutral, we just show the base (transparent bg here)
+                      // For colored, we show the vibrant opaque color + opacity
+                      backgroundColor: isNeutral
+                        ? "transparent"
+                        : `${theme.border}4D`, // 30% opacity
+                      ...roundedStyle,
+                    }}
+                  >
+                    {/* SVG Border - Only for colored regions */}
+                    {!isNeutral && (
+                      <DashedBorder
+                        color={theme.border}
+                        isNeutral={isNeutral}
+                        showTop={!sameTop}
+                        showBottom={!sameBottom}
+                        showLeft={!sameLeft}
+                        showRight={!sameRight}
+                        radiusTL={!sameTop && !sameLeft}
+                        radiusTR={!sameTop && !sameRight}
+                        radiusBL={!sameBottom && !sameLeft}
+                        radiusBR={!sameBottom && !sameRight}
+                      />
+                    )}
+
+                    {/* Empty Socket Shadow */}
+                    {!isOccupied && (
+                      <div
+                        className="absolute inset-1 rounded-lg"
+                        style={{
+                          // A subtle inner shadow to make it look like a recessed hole
+                          backgroundColor: "rgba(0,0,0,0.05)",
+                          boxShadow: "inset 0 1px 2px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        {/* Tiny center dot */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Constraint Tag */}
+                    {isLabelCell && (
+                      <RegionConstraint
+                        constraint={region.constraint}
+                        theme={region.colorTheme}
+                      />
+                    )}
                   </div>
-                )}
-                {isLabelCell && (
-                  <RegionConstraint
-                    constraint={region.constraint}
-                    theme={region.colorTheme}
-                  />
-                )}
+                </div>
               </div>
             );
           })
         )}
       </div>
 
+      {/* OVERLAY: DOMINOES */}
       <div className="absolute inset-0 w-full h-full pointer-events-none">
         {placements.map((p) => {
           const domino = availableDominoes.find((d) => d.id === p.dominoId);
@@ -148,7 +208,8 @@ export const GameBoard = ({
                 height: `${(1 / board.rows) * 100}%`,
                 transformOrigin: "25% 50%",
                 transform: `rotate(${p.rotation}deg)`,
-                padding: "2px",
+                // Padding ensures the piece sits "inside" the board edges nicely
+                padding: "3px",
               }}
               onMouseDown={(e) => onPieceMouseDown(e, p.dominoId)}
             >
