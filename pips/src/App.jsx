@@ -164,7 +164,9 @@ export default function App() {
   const handleMouseDown = (e, id, fromBoard) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+
     commitActivePiece(id);
+
     dragStartPos.current = { x: e.clientX, y: e.clientY, id, fromBoard };
   };
 
@@ -214,6 +216,7 @@ export default function App() {
 
   const handleMouseUp = useCallback(
     (e) => {
+      // --- DRAG END ---
       if (draggingDominoId && board) {
         const boardContainer = document.querySelector("[data-board-container]");
         let placed = false;
@@ -268,20 +271,40 @@ export default function App() {
           }
         }
 
+        // --- DROP FAILED / DRAGGED OUT ---
         if (!placed) {
-          setTrayRotations((prev) => ({ ...prev, [draggingDominoId]: 0 }));
+          const wasFromBoard = dragStartPos.current?.fromBoard;
+
+          if (wasFromBoard) {
+            // If it came from the board, reset to starting position (0)
+            setTrayRotations((prev) => ({ ...prev, [draggingDominoId]: 0 }));
+          } else {
+            // If it came from the tray, keep its current rotation
+            const currentRot = ((dragRotation % 360) + 360) % 360;
+            setTrayRotations((prev) => ({
+              ...prev,
+              [draggingDominoId]: currentRot,
+            }));
+          }
         }
+
         setDraggingDominoId(null);
-      } else if (dragStartPos.current) {
+      }
+
+      // --- CLICK (ROTATE) ---
+      else if (dragStartPos.current) {
         const { id, fromBoard } = dragStartPos.current;
+
         if (fromBoard) {
           const placement = gameState.placements.find((p) => p.dominoId === id);
+
           if (activePieceId !== id) {
             setActivePieceId(id);
             if (placement) {
               lastValidRotationRef.current[id] = placement.rotation;
             }
           }
+
           if (placement) {
             const newRotation = placement.rotation + 90;
             const updatedPlacements = gameState.placements.map((p) =>
@@ -293,9 +316,11 @@ export default function App() {
             }));
           }
         } else {
+          // CLICK ON TRAY
           setTrayRotations((prev) => ({ ...prev, [id]: (prev[id] || 0) + 90 }));
         }
       }
+
       dragStartPos.current = null;
     },
     [
@@ -310,7 +335,7 @@ export default function App() {
 
   const handleBackgroundClick = () => {
     commitActivePiece(null);
-    setTrayRotations({});
+    // Do NOT clear tray rotations here, so "rotated in tray" state persists
   };
 
   const handleRemove = (id) => {
@@ -319,6 +344,7 @@ export default function App() {
       ...prev,
       placements: prev.placements.filter((p) => p.dominoId !== id),
     }));
+    // Forced remove (e.g. bounce back from invalid board placement) -> Reset to 0
     setTrayRotations((prev) => ({ ...prev, [id]: 0 }));
     if (activePieceId === id) setActivePieceId(null);
   };
@@ -410,7 +436,7 @@ export default function App() {
               return (
                 <div
                   key={dom.id}
-                  className="relative w-[90px] h-[50px] bg-slate-200/50 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center shadow-inner cursor-pointer"
+                  className="relative w-[90px] h-[50px] bg-slate-200/50 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center shadow-inner"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {showPiece && (
