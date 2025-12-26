@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pips Logic Puzzle</title>
+    <!-- Tailwind and styles remain exactly the same -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              pip: {
+                bg: "#fffaf5",
+                board: "#e8e0d9",
+              },
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+            animation: {
+              "fade-in": "fadeIn 0.3s ease-out",
+              "slide-up": "slideUp 0.3s ease-out",
+            },
+            keyframes: {
+              fadeIn: {
+                "0%": { opacity: "0", transform: "scale(0.95)" },
+                "100%": { opacity: "1", transform: "scale(1)" },
+              },
+              slideUp: {
+                "0%": { opacity: "0", transform: "translateY(20px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap");
+
+      body {
+        background-color: #fffaf5;
+        font-family: "Inter", sans-serif;
+        overflow-x: hidden;
+      }
+
+      /* Region Border Styling */
+      :root {
+        --region-border-color: #64748b; /* Slate 500 */
+        --region-border-width: 2px;
+        --dash-size: 8px;
+      }
+
+      .dashed-border-top {
+        background-image: linear-gradient(
+          to right,
+          var(--region-border-color) 50%,
+          transparent 50%
+        );
+        background-position: top;
+        background-size: var(--dash-size) var(--region-border-width);
+        background-repeat: repeat-x;
+      }
+      .dashed-border-right {
+        background-image: linear-gradient(
+          to bottom,
+          var(--region-border-color) 50%,
+          transparent 50%
+        );
+        background-position: right;
+        background-size: var(--region-border-width) var(--dash-size);
+        background-repeat: repeat-y;
+      }
+      .dashed-border-bottom {
+        background-image: linear-gradient(
+          to right,
+          var(--region-border-color) 50%,
+          transparent 50%
+        );
+        background-position: bottom;
+        background-size: var(--dash-size) var(--region-border-width);
+        background-repeat: repeat-x;
+      }
+      .dashed-border-left {
+        background-image: linear-gradient(
+          to bottom,
+          var(--region-border-color) 50%,
+          transparent 50%
+        );
+        background-position: left;
+        background-size: var(--region-border-width) var(--dash-size);
+        background-repeat: repeat-y;
+      }
+
+      .no-select {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "lucide-react": "https://esm.sh/lucide-react@^0.559.0",
+          "react/": "https://esm.sh/react@^19.2.1/",
+          "react": "https://esm.sh/react@^19.2.1",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.1/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
