@@ -292,6 +292,7 @@ export default function App() {
         const { id, fromBoard } = dragStartPos.current;
 
         if (fromBoard) {
+          // CLICK ON BOARD -> ROTATE
           const placement = gameState.placements.find((p) => p.dominoId === id);
 
           if (activePieceId !== id) {
@@ -312,6 +313,7 @@ export default function App() {
             }));
           }
         } else {
+          // CLICK ON TRAY
           setTrayRotations((prev) => ({ ...prev, [id]: (prev[id] || 0) + 90 }));
         }
       }
@@ -328,17 +330,39 @@ export default function App() {
     ]
   );
 
+  // --- UPDATED: Background Click Logic ---
   const handleBackgroundClick = () => {
+    // 1. Commit active board piece
     commitActivePiece(null);
+
+    // 2. Reset TRAY vertical pieces to nearest horizontal
+    setTrayRotations((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        const rot = next[key];
+        // If vertical (90, 270, 450...), subtract 90 to get previous horizontal
+        if (rot % 180 !== 0) {
+          next[key] = rot - 90;
+        }
+        // If horizontal (0, 180...), leave it alone
+      });
+      return next;
+    });
   };
 
   const handleRemove = (id) => {
     if (gameState.isComplete) return;
+
+    const placement = gameState.placements.find((p) => p.dominoId === id);
+    const rot = placement ? placement.rotation : 0;
+
     setGameState((prev) => ({
       ...prev,
       placements: prev.placements.filter((p) => p.dominoId !== id),
     }));
-    setTrayRotations((prev) => ({ ...prev, [id]: 0 }));
+
+    setTrayRotations((prev) => ({ ...prev, [id]: rot }));
+
     if (activePieceId === id) setActivePieceId(null);
   };
 
@@ -401,7 +425,6 @@ export default function App() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 w-full">
-        {/* Board */}
         <div className="w-full max-w-[400px] mb-12 relative z-10 overflow-visible">
           <div data-board-container className="w-full relative">
             <GameBoard
@@ -415,17 +438,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* TRAY */}
         <div className="w-full flex flex-col items-center gap-6 pb-6 animate-[slideUp_0.3s_ease-out]">
           <div className="text-[10px] font-black tracking-[0.2em] text-[#bca6c7] uppercase select-none bg-white/60 px-4 py-2 rounded-full border border-white">
             Tap to Rotate • Drag to Place
           </div>
-
-          {/* 
-             CHANGED: 
-             Added gap-x-3 and gap-y-12. 
-             gap-y-12 (48px) allows plenty of room for vertical pieces without overlap.
-          */}
           <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-12 min-h-[100px] max-w-5xl px-4">
             {board.initialDominoes.map((dom) => {
               const isPlaced = gameState.placements.some(
@@ -434,7 +450,6 @@ export default function App() {
               const isDragging = draggingDominoId === dom.id;
               const showPiece = !isPlaced && !isDragging;
               const rotation = trayRotations[dom.id] || 0;
-
               return (
                 <div
                   key={dom.id}
@@ -461,7 +476,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Drag Ghost Overlay */}
       {draggingDominoId && (
         <div
           className="fixed pointer-events-none z-50"
