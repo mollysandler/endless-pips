@@ -1,2 +1,2 @@
 # endless-pips
-infinte pips NYT games dupe
+infinte pips games dupe
