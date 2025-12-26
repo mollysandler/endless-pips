@@ -120,6 +120,7 @@ export default function App() {
     return !collision;
   };
 
+  // --- LOGIC: Commit Active Piece ---
   const commitActivePiece = (clickedId = null) => {
     if (activePieceId && clickedId === activePieceId) return;
     if (!activePieceId) return;
@@ -163,7 +164,9 @@ export default function App() {
   const handleMouseDown = (e, id, fromBoard) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+
     commitActivePiece(id);
+
     dragStartPos.current = { x: e.clientX, y: e.clientY, id, fromBoard };
   };
 
@@ -213,7 +216,7 @@ export default function App() {
 
   const handleMouseUp = useCallback(
     (e) => {
-      // --- CASE A: DRAG END ---
+      // --- DRAG END ---
       if (draggingDominoId && board) {
         const boardContainer = document.querySelector("[data-board-container]");
         let placed = false;
@@ -223,7 +226,6 @@ export default function App() {
           const relativeX = e.clientX - rect.left;
           const relativeY = e.clientY - rect.top;
 
-          // Expanded hit area
           const isInsideBoard =
             relativeX >= -50 &&
             relativeX <= rect.width + 50 &&
@@ -234,32 +236,16 @@ export default function App() {
             const cellW = rect.width / board.cols;
             const cellH = rect.height / board.rows;
             const isVert = dragRotation % 180 !== 0;
-
-            // Calculate Top-Left of the BOUNDING BOX
             const pieceW = isVert ? cellW : cellW * 2;
             const pieceH = isVert ? cellH * 2 : cellH;
             const topLeftX = relativeX - pieceW / 2;
             const topLeftY = relativeY - pieceH / 2;
-
-            let c = Math.round(topLeftX / cellW);
-            let r = Math.round(topLeftY / cellH);
-
-            // --- CRITICAL FIX: ADJUST FOR ROTATION ---
-            // The validity check expects (r,c) to be the "Head" cell.
-            // But we just calculated the Top-Left of the bounding box.
-            const normRot = ((dragRotation % 360) + 360) % 360;
-
-            if (normRot === 180) {
-              // Bounding box is [Tail][Head]. TopLeft is Tail. Head is +1 col.
-              c += 1;
-            } else if (normRot === 270) {
-              // Bounding box is [Tail] over [Head]. TopLeft is Tail. Head is +1 row.
-              r += 1;
-            }
+            const c = Math.round(topLeftX / cellW);
+            const r = Math.round(topLeftY / cellH);
 
             if (isValidPosition(r, c, dragRotation, draggingDominoId)) {
               placed = true;
-              const normalizedRotation = normRot;
+              const normalizedRotation = ((dragRotation % 360) + 360) % 360;
 
               const newPlacement = {
                 dominoId: draggingDominoId,
@@ -301,7 +287,7 @@ export default function App() {
         setDraggingDominoId(null);
       }
 
-      // --- CASE B: CLICK (ROTATE) ---
+      // --- CLICK (ROTATE) ---
       else if (dragStartPos.current) {
         const { id, fromBoard } = dragStartPos.current;
 
@@ -415,6 +401,7 @@ export default function App() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 w-full">
+        {/* Board */}
         <div className="w-full max-w-[400px] mb-12 relative z-10 overflow-visible">
           <div data-board-container className="w-full relative">
             <GameBoard
@@ -428,11 +415,18 @@ export default function App() {
           </div>
         </div>
 
+        {/* TRAY */}
         <div className="w-full flex flex-col items-center gap-6 pb-6 animate-[slideUp_0.3s_ease-out]">
           <div className="text-[10px] font-black tracking-[0.2em] text-[#bca6c7] uppercase select-none bg-white/60 px-4 py-2 rounded-full border border-white">
             Tap to Rotate • Drag to Place
           </div>
-          <div className="flex flex-wrap justify-center items-center gap-3 min-h-[100px] max-w-5xl px-4">
+
+          {/* 
+             CHANGED: 
+             Added gap-x-3 and gap-y-12. 
+             gap-y-12 (48px) allows plenty of room for vertical pieces without overlap.
+          */}
+          <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-12 min-h-[100px] max-w-5xl px-4">
             {board.initialDominoes.map((dom) => {
               const isPlaced = gameState.placements.some(
                 (p) => p.dominoId === dom.id
@@ -440,6 +434,7 @@ export default function App() {
               const isDragging = draggingDominoId === dom.id;
               const showPiece = !isPlaced && !isDragging;
               const rotation = trayRotations[dom.id] || 0;
+
               return (
                 <div
                   key={dom.id}
@@ -466,6 +461,7 @@ export default function App() {
         </div>
       </main>
 
+      {/* Drag Ghost Overlay */}
       {draggingDominoId && (
         <div
           className="fixed pointer-events-none z-50"

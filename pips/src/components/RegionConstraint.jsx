@@ -1,6 +1,3 @@
-import React from "react";
-
-// Same exact palette as GameBoard
 const PALETTE = {
   purple: "#8e70a6",
   pink: "#dc4c6e",

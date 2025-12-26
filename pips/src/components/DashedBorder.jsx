@@ -34,16 +34,12 @@ export const DashedBorder = ({
   if (width === 0 || height === 0)
     return <div ref={containerRef} className="absolute inset-0" />;
 
-  // STYLE CONFIG
-  // Thinner stroke, tighter dashes to match reference
   const strokeWidth = 3;
-  const dashArray = "5 6"; // 5px line, 6px gap
-  const R = 10; // Radius matches the div radius
+  const dashArray = "5 6";
+  const R = 10;
 
   const segments = [];
 
-  // Helper: Draw segments based on visibility
-  // TOP-LEFT
   if (showTop && showLeft && radiusTL)
     segments.push(<path key="tl-c" d={`M 0 ${R} Q 0 0 ${R} 0`} />);
   else {
