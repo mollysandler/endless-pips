@@ -8,7 +8,11 @@ const regionStyles = {
   teal: { bg: "bg-[#a9cdce]", border: "border-[#6b9ea0]" },
   orange: { bg: "bg-[#e8cda1]", border: "border-[#c7a672]" },
   navy: { bg: "bg-[#b3c7e6]", border: "border-[#7a9cc6]" },
+  green: { bg: "bg-[#c8d4a1]", border: "border-[#5d7616]" },
+  // NEW NEUTRAL STYLE (Wildcard)
+  neutral: { bg: "bg-[#e3d0bf]", border: "border-[#d1c4b5]" },
 };
+
 const defaultStyle = { bg: "bg-[#dcd0c5]", border: "border-[#a89b90]" };
 
 export const GameBoard = ({
@@ -53,21 +57,41 @@ export const GameBoard = ({
             const sameBottom = isSameRegion(r + 1, c, rid);
             const sameLeft = isSameRegion(r, c - 1, rid);
             const sameRight = isSameRegion(r, c + 1, rid);
+
             const theme = regionStyles[region.colorTheme] || defaultStyle;
+
             const roundedClasses = [
               !sameTop && !sameLeft ? "rounded-tl-[1rem]" : "",
               !sameTop && !sameRight ? "rounded-tr-[1rem]" : "",
               !sameBottom && !sameLeft ? "rounded-bl-[1rem]" : "",
               !sameBottom && !sameRight ? "rounded-br-[1rem]" : "",
             ].join(" ");
+
             const borderColorHex = theme.border.match(/#\w+/)?.[0] || "#999";
-            const dashedBorder = `2.5px dashed ${borderColorHex}`;
+
+            // --- BORDER LOGIC ---
+            // Neutral regions look solid/recessed, others are dashed
+            const borderType =
+              region.colorTheme === "neutral" ? "solid" : "dashed";
+
+            // For neutral, we can make the border slightly thinner or match background to look like a solid block
+            const borderWidth = region.colorTheme === "neutral" ? "1px" : "3px";
+            const customBorder = `${borderWidth} ${borderType} ${borderColorHex}`;
+
+            // For neutral, use opaque background. For others, use transparent.
+            const bgColor =
+              region.colorTheme === "neutral"
+                ? borderColorHex // Use the border color as the solid fill for neutral (looks like beige block)
+                : `${borderColorHex}4D`; // 30% opacity for colored regions
+
             const styles = {
-              borderTop: !sameTop ? dashedBorder : "0",
-              borderBottom: !sameBottom ? dashedBorder : "0",
-              borderLeft: !sameLeft ? dashedBorder : "0",
-              borderRight: !sameRight ? dashedBorder : "0",
+              backgroundColor: bgColor,
+              borderTop: !sameTop ? customBorder : "0",
+              borderBottom: !sameBottom ? customBorder : "0",
+              borderLeft: !sameLeft ? customBorder : "0",
+              borderRight: !sameRight ? customBorder : "0",
             };
+
             const isLabelCell =
               region.labelPosition?.r === r && region.labelPosition?.c === c;
 
@@ -84,7 +108,7 @@ export const GameBoard = ({
             return (
               <div
                 key={`${r}-${c}`}
-                className={`relative w-full h-full box-border ${theme.bg} ${roundedClasses}`}
+                className={`relative w-full h-full box-border ${roundedClasses}`}
                 style={styles}
               >
                 {!isOccupied && (

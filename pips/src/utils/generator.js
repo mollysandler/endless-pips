@@ -9,7 +9,7 @@ const isValidPos = (r, c, rows, cols, shape) => {
 export const generatePuzzle = (difficulty) => {
   let rows = 4;
   let cols = 4;
-  let complexity = 1; // Used for region splitting
+  let complexity = 1;
 
   if (difficulty === "medium") {
     rows = 5;
@@ -21,12 +21,11 @@ export const generatePuzzle = (difficulty) => {
     complexity = 3;
   }
 
-  // 1. Create a shape (simply a rectangle for now, or remove some corners for flavor)
+  // 1. Create a shape
   const gridShape = Array(rows)
     .fill(null)
     .map(() => Array(cols).fill(true));
 
-  // Mask out some corners to make it interesting
   if (difficulty !== "easy") {
     gridShape[0][0] = false;
     gridShape[0][cols - 1] = false;
@@ -36,7 +35,7 @@ export const generatePuzzle = (difficulty) => {
     }
   }
 
-  // 2. Fill with dominoes (Backtracking or Randomized placement) to ensure solvability
+  // 2. Fill with dominoes
   const solutionPlacement = [];
   const occupied = Array(rows)
     .fill(null)
@@ -51,23 +50,22 @@ export const generatePuzzle = (difficulty) => {
     }
   }
 
-  // Shuffle cells to randomize start points
   cellsToFill.sort(() => Math.random() - 0.5);
 
   for (const cell of cellsToFill) {
     if (occupied[cell.r][cell.c]) continue;
 
     const neighbors = [
-      { r: cell.r, c: cell.c + 1, rot: 0 }, // Right (Horizontal)
-      { r: cell.r + 1, c: cell.c, rot: 90 }, // Down (Vertical)
+      { r: cell.r, c: cell.c + 1, rot: 0 },
+      { r: cell.r + 1, c: cell.c, rot: 90 },
     ].filter(
       (n) => isValidPos(n.r, n.c, rows, cols, gridShape) && !occupied[n.r][n.c]
     );
 
     if (neighbors.length > 0) {
       const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-      const v1 = Math.floor(Math.random() * 7); // 0-6
-      const v2 = Math.floor(Math.random() * 7); // 0-6
+      const v1 = Math.floor(Math.random() * 7);
+      const v2 = Math.floor(Math.random() * 7);
 
       occupied[cell.r][cell.c] = true;
       occupied[target.r][target.c] = true;
@@ -76,7 +74,7 @@ export const generatePuzzle = (difficulty) => {
         id: `d-${dominoIdCounter++}`,
         v1,
         v2,
-        rotation: 0, // Default in tray
+        rotation: 0,
       };
       dominoes.push(dom);
 
@@ -113,10 +111,10 @@ export const generatePuzzle = (difficulty) => {
   const regions = [];
   const regionMap = Array(rows)
     .fill(null)
-    .map(() => Array(cols).fill(-1)); // Stores regionID per cell
+    .map(() => Array(cols).fill(-1));
   let regionIdCounter = 0;
 
-  const palette = ["pink", "purple", "teal", "orange", "navy"];
+  const palette = ["pink", "purple", "orange", "navy", "teal", "green"];
 
   const validCells = [];
   for (let r = 0; r < rows; r++)
@@ -128,7 +126,10 @@ export const generatePuzzle = (difficulty) => {
   validCells.forEach((cell) => {
     if (regionMap[cell.r][cell.c] !== -1) return;
 
-    // Start a new region
+    // DECISION: Is this a "Wildcard" (Neutral) region?
+    // 20% chance to be a filler region with no constraints
+    const isNeutral = Math.random() < 0.2;
+
     const regionId = regionIdCounter++;
     const regionCells = [cell];
     regionMap[cell.r][cell.c] = regionId;
@@ -159,9 +160,8 @@ export const generatePuzzle = (difficulty) => {
       }
     }
 
-    // --- COLORING LOGIC (No touching neighbors of same color) ---
+    // Graph Coloring Logic
     const neighborColors = new Set();
-
     regionCells.forEach((rc) => {
       const neighbors = [
         { r: rc.r + 1, c: rc.c },
@@ -169,13 +169,10 @@ export const generatePuzzle = (difficulty) => {
         { r: rc.r, c: rc.c + 1 },
         { r: rc.r, c: rc.c - 1 },
       ];
-
       neighbors.forEach((n) => {
         if (isValidPos(n.r, n.c, rows, cols, gridShape)) {
           const neighborId = regionMap[n.r][n.c];
-          // If neighbor exists and is not the current region we are building
           if (neighborId !== -1 && neighborId !== regionId) {
-            // Find the color of that region
             const neighborRegion = regions.find(
               (reg) => reg._internalId === neighborId
             );
@@ -187,45 +184,48 @@ export const generatePuzzle = (difficulty) => {
       });
     });
 
-    // Filter palette for unused colors
-    const availableColors = palette.filter((c) => !neighborColors.has(c));
-    // If we run out of colors (rare on small board), fallback to full palette
-    const finalPalette = availableColors.length > 0 ? availableColors : palette;
-    const chosenColor =
-      finalPalette[Math.floor(Math.random() * finalPalette.length)];
+    // Pick color (or set to neutral)
+    let chosenColor = "neutral";
+    let chosenConstraint = { type: "none" };
 
-    // --- CONSTRAINT LOGIC ---
-    const values = regionCells.map((c) => valueGrid[c.r][c.c]);
-    const possibleConstraints = [{ type: "none" }];
-    const sum = values.reduce((a, b) => a + b, 0);
-    possibleConstraints.push({ type: "sum", value: sum });
+    if (!isNeutral) {
+      const availableColors = palette.filter((c) => !neighborColors.has(c));
+      const finalPalette =
+        availableColors.length > 0 ? availableColors : palette;
+      chosenColor =
+        finalPalette[Math.floor(Math.random() * finalPalette.length)];
 
-    // Equality Checks: Only valid if more than 1 cell
-    if (regionCells.length > 1) {
-      if (values.every((v) => v === values[0])) {
-        possibleConstraints.push({ type: "eq" });
+      // Calculate Constraint
+      const values = regionCells.map((c) => valueGrid[c.r][c.c]);
+      let possibleConstraints = [{ type: "none" }];
+      const sum = values.reduce((a, b) => a + b, 0);
+      possibleConstraints.push({ type: "sum", value: sum });
+
+      if (regionCells.length > 1) {
+        if (values.every((v) => v === values[0]))
+          possibleConstraints.push({ type: "eq" });
+        const unique = new Set(values);
+        if (unique.size === values.length)
+          possibleConstraints.push({ type: "neq" });
       }
-      const unique = new Set(values);
-      if (unique.size === values.length) {
-        possibleConstraints.push({ type: "neq" });
+
+      const diff = Math.floor(Math.random() * 3) + 1;
+      possibleConstraints.push({ type: "gt", value: sum - diff });
+      possibleConstraints.push({ type: "lt", value: sum + diff });
+
+      const validConstraints = possibleConstraints.filter((c) => {
+        if (c.type === "gt" && c.value < 0) return false;
+        if (regionCells.length === 1 && c.type === "lt" && c.value > 6)
+          return false;
+        return true;
+      });
+
+      chosenConstraint = validConstraints[0];
+      if (validConstraints.length > 1) {
+        const interesting = validConstraints.filter((c) => c.type !== "none");
+        chosenConstraint =
+          interesting[Math.floor(Math.random() * interesting.length)];
       }
-    }
-
-    // Greater/Less
-    const diff = Math.floor(Math.random() * 3) + 1;
-    possibleConstraints.push({ type: "gt", value: sum - diff });
-    possibleConstraints.push({ type: "lt", value: sum + diff });
-
-    const validConstraints = possibleConstraints.filter((c) => {
-      if (c.type === "gt" && c.value < 0) return false;
-      return true;
-    });
-
-    let chosenConstraint = validConstraints[0];
-    if (validConstraints.length > 1) {
-      const interesting = validConstraints.filter((c) => c.type !== "none");
-      chosenConstraint =
-        interesting[Math.floor(Math.random() * interesting.length)];
     }
 
     regionCells.sort((a, b) => a.r + a.c - (b.r + b.c));
@@ -233,7 +233,7 @@ export const generatePuzzle = (difficulty) => {
 
     regions.push({
       id: `region-${regionId}`,
-      _internalId: regionId, // Used for coloring lookup
+      _internalId: regionId,
       colorTheme: chosenColor,
       cells: regionCells,
       constraint: chosenConstraint,
