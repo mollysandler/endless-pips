@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Drop Shadow for the Tag -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Main Group: Rotated slightly for dynamism -->
+  <g transform="translate(100, 100) rotate(-10) translate(-100, -100)">
+    
+    <!-- Bottom Right Block (Teal Region) -->
+    <!-- BG -->
+    <rect x="90" y="90" width="70" height="70" rx="16" fill="#a3c3c7" opacity="0.6" />
+    <!-- Dashed Border -->
+    <rect x="90" y="90" width="70" height="70" rx="16" fill="none" stroke="#408591" stroke-width="4" stroke-dasharray="8 8" stroke-linecap="round" />
+    <!-- Pips (Value: 3) -->
+    <circle cx="105" cy="105" r="5" fill="#1e293b" />
+    <circle cx="125" cy="125" r="5" fill="#1e293b" />
+    <circle cx="145" cy="145" r="5" fill="#1e293b" />
+
+    <!-- Top Left Block (Pink Region) -->
+    <!-- BG -->
+    <rect x="40" y="40" width="70" height="70" rx="16" fill="#e8acb9" opacity="0.6" />
+    <!-- Dashed Border -->
+    <rect x="40" y="40" width="70" height="70" rx="16" fill="none" stroke="#d94568" stroke-width="4" stroke-dasharray="8 8" stroke-linecap="round" />
+    <!-- Pips (Value: 2) -->
+    <circle cx="55" cy="55" r="5" fill="#1e293b" />
+    <circle cx="95" cy="95" r="5" fill="#1e293b" />
+
+    <!-- Constraint Tag (Navy) -->
+    <g transform="translate(160, 160)" filter="url(#shadow)">
+      <!-- Diamond Shape -->
+      <rect x="-14" y="-14" width="28" height="28" rx="6" transform="rotate(45)" fill="#2c4f8f" stroke="#ffffff" stroke-width="2" />
+      <!-- Text Symbol -->
+      <text x="0" y="4" font-family="Arial, sans-serif" font-weight="900" font-size="14" fill="white" text-anchor="middle">&lt;6</text>
+    </g>
+
+  </g>
+</svg>

@@ -385,7 +385,7 @@ export default function App() {
       className="min-h-screen bg-[#fffaf5] text-slate-800 flex flex-col font-sans"
       onClick={handleBackgroundClick}
     >
-      {/* ... Header and Main Content remain same, ensure GameBoard is rendered ... */}
+      <div className="flex items-center gap-6"></div>
       <header className="px-6 py-5 flex items-center justify-between sticky top-0 z-30 bg-[#fffaf5]/90 backdrop-blur-sm">
         <div className="flex flex-col">
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
