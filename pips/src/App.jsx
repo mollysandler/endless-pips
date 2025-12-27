@@ -2,8 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { generatePuzzle, checkCompletion } from "./utils/generator";
 import { GameBoard } from "./components/GameBoard";
 import { DominoPiece } from "./components/DominoPiece";
-import { HomeScreen } from "./components/HomeScreen"; // Import the new screen
-import { IconRestart, IconCheck, IconPlay } from "./components/Icons";
+import { HomeScreen } from "./components/HomeScreen";
+import {
+  IconRestart,
+  IconCheck,
+  IconPlay,
+  IconClose,
+} from "./components/Icons";
 
 const Modal = ({ children }) => (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-[fadeIn_0.2s_ease-out]">
@@ -14,12 +19,10 @@ const Modal = ({ children }) => (
 );
 
 export default function App() {
-  // --- APP STATE ---
-  const [view, setView] = useState("home"); // 'home' | 'game'
+  const [view, setView] = useState("home");
   const [difficulty, setDifficulty] = useState("easy");
-
-  // --- GAME STATE ---
   const [board, setBoard] = useState(null);
+
   const [gameState, setGameState] = useState({
     placements: [],
     startTime: Date.now(),
@@ -32,11 +35,15 @@ export default function App() {
   const [dragRotation, setDragRotation] = useState(0);
   const [activePieceId, setActivePieceId] = useState(null);
 
+  // --- VALIDATION STATE ---
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showErrorIndicators, setShowErrorIndicators] = useState(false);
+  const [invalidRegionIds, setInvalidRegionIds] = useState([]);
+
   const dragStartPos = useRef(null);
   const lastValidRotationRef = useRef({});
   const [elapsed, setElapsed] = useState(0);
 
-  // Timer
   useEffect(() => {
     let interval;
     if (view === "game" && !gameState.isComplete) {
@@ -46,8 +53,6 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [view, gameState.isComplete, gameState.startTime]);
-
-  // --- GAME ACTIONS ---
 
   const startGame = () => {
     const newBoard = generatePuzzle(difficulty);
@@ -61,17 +66,48 @@ export default function App() {
     lastValidRotationRef.current = {};
     setActivePieceId(null);
     setElapsed(0);
+
+    // Reset Validation
+    setShowErrorModal(false);
+    setShowErrorIndicators(false);
+    setInvalidRegionIds([]);
+
     setView("game");
   };
 
   const handleRestart = () => {
-    // Regenerate a new puzzle of the SAME difficulty
     startGame();
   };
 
-  // --- MOUSE HANDLERS (Same as before) ---
-  // ... (Logic remains identical to previous step) ...
-  // ... I will re-include the logic below for completeness ...
+  // --- CHECK WIN CONDITION ---
+  const checkWinCondition = (currentPlacements) => {
+    if (!board) return;
+
+    // 1. Is board full?
+    const totalDominoes = board.initialDominoes.length;
+    if (currentPlacements.length === totalDominoes) {
+      // 2. Validate
+      const { isComplete, invalidRegionIds: badRegions } = checkCompletion(
+        board,
+        currentPlacements
+      );
+
+      if (isComplete) {
+        setGameState((prev) => ({ ...prev, isComplete: true }));
+      } else {
+        // Board full but wrong -> Show Modal
+        setInvalidRegionIds(badRegions);
+        setShowErrorModal(true);
+      }
+    }
+  };
+
+  const handleCloseErrorModal = () => {
+    setShowErrorModal(false);
+    setShowErrorIndicators(true); // Show red dots
+  };
+
+  // --- MOUSE HANDLERS ---
 
   const isValidPosition = (r, c, rotation, ignoreId = null) => {
     if (!board) return false;
@@ -113,6 +149,7 @@ export default function App() {
   const commitActivePiece = (clickedId = null) => {
     if (activePieceId && clickedId === activePieceId) return;
     if (!activePieceId) return;
+
     const placement = gameState.placements.find(
       (p) => p.dominoId === activePieceId
     );
@@ -120,16 +157,17 @@ export default function App() {
       setActivePieceId(null);
       return;
     }
+
     const valid = isValidPosition(
       placement.r,
       placement.c,
       placement.rotation,
       activePieceId
     );
+
     if (valid) {
       lastValidRotationRef.current[activePieceId] = placement.rotation;
-      const won = checkCompletion(board, gameState.placements);
-      if (won) setGameState((prev) => ({ ...prev, isComplete: true }));
+      checkWinCondition(gameState.placements);
     } else {
       const lastGoodRot =
         lastValidRotationRef.current[activePieceId] !== undefined
@@ -148,6 +186,10 @@ export default function App() {
   const handleMouseDown = (e, id, fromBoard) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+
+    // INTERACTION CLEARS ERROR DOTS
+    setShowErrorIndicators(false);
+
     commitActivePiece(id);
     dragStartPos.current = { x: e.clientX, y: e.clientY, id, fromBoard };
   };
@@ -185,6 +227,9 @@ export default function App() {
           setDraggingDominoId(id);
           setDragRotation(startRotation);
           setCursorPos({ x: e.clientX, y: e.clientY });
+
+          // Hide dots if we start dragging
+          setShowErrorIndicators(false);
         }
       }
     },
@@ -222,17 +267,18 @@ export default function App() {
                 c,
                 rotation: normalizedRotation,
               };
-              const nextState = {
-                ...gameState,
-                placements: [...gameState.placements, newPlacement],
-              };
-              const won = checkCompletion(board, nextState.placements);
-              setGameState({ ...nextState, isComplete: won });
+
+              const nextPlacements = [...gameState.placements, newPlacement];
+              setGameState({ ...gameState, placements: nextPlacements });
+
               lastValidRotationRef.current[draggingDominoId] =
                 normalizedRotation;
               const newRotations = { ...trayRotations };
               delete newRotations[draggingDominoId];
               setTrayRotations(newRotations);
+
+              // Check win/errors immediately on drop
+              checkWinCondition(nextPlacements);
             }
           }
         }
@@ -306,6 +352,7 @@ export default function App() {
     }));
     setTrayRotations((prev) => ({ ...prev, [id]: rot }));
     if (activePieceId === id) setActivePieceId(null);
+    setShowErrorIndicators(false);
   };
 
   useEffect(() => {
@@ -316,9 +363,6 @@ export default function App() {
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp, activePieceId, gameState.placements]);
-
-  const getDragDomino = () =>
-    board?.initialDominoes.find((d) => d.id === draggingDominoId);
 
   // --- RENDER ---
 
@@ -340,13 +384,16 @@ export default function App() {
       onClick={handleBackgroundClick}
     >
       <header className="px-6 py-5 flex items-center justify-between sticky top-0 z-30 bg-[#fffaf5]/90 backdrop-blur-sm">
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">
-            PIPS
-          </h1>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-            Logic Puzzle
-          </span>
+        <div className="flex flex-row items-center gap-3">
+          <img src="/logo.svg" alt="Pips Logo" className="w-12 h-12" />
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">
+              PIPS
+            </h1>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+              Logic Puzzle
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex flex-col items-end">
@@ -373,6 +420,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* Main Board */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 w-full">
         <div className="w-full max-w-[400px] mb-12 relative z-10 overflow-visible">
           <div data-board-container className="w-full relative">
@@ -383,10 +431,13 @@ export default function App() {
               activePieceId={activePieceId}
               onPieceMouseDown={(e, id) => handleMouseDown(e, id, true)}
               onRemove={handleRemove}
+              invalidRegionIds={invalidRegionIds}
+              showErrorIndicators={showErrorIndicators}
             />
           </div>
         </div>
 
+        {/* Tray */}
         <div className="w-full flex flex-col items-center gap-6 pb-6 animate-[slideUp_0.3s_ease-out]">
           <div className="text-[10px] font-black tracking-[0.2em] text-[#bca6c7] uppercase select-none bg-white/60 px-4 py-2 rounded-full border border-white">
             Tap to Rotate • Drag to Place
@@ -425,6 +476,7 @@ export default function App() {
         </div>
       </main>
 
+      {/* Ghost */}
       {draggingDominoId && (
         <div
           className="fixed pointer-events-none z-50"
@@ -437,11 +489,18 @@ export default function App() {
           }}
         >
           <div className="w-full h-full opacity-90 shadow-2xl scale-110">
-            {getDragDomino() && <DominoPiece domino={getDragDomino()} />}
+            {board.initialDominoes.find((d) => d.id === draggingDominoId) && (
+              <DominoPiece
+                domino={board.initialDominoes.find(
+                  (d) => d.id === draggingDominoId
+                )}
+              />
+            )}
           </div>
         </div>
       )}
 
+      {/* Win Modal */}
       {gameState.isComplete && (
         <Modal>
           <div className="text-center flex flex-col items-center gap-6">
@@ -471,6 +530,32 @@ export default function App() {
                 <IconPlay className="w-4 h-4 text-slate-300 group-hover:text-slate-900" />
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <Modal>
+          <div className="text-center flex flex-col items-center gap-4 relative">
+            <button
+              onClick={handleCloseErrorModal}
+              className="absolute -top-4 -right-4 p-2 text-slate-400 hover:text-slate-800"
+            >
+              <IconClose className="w-6 h-6" />
+            </button>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight font-serif">
+              Almost there.
+            </h2>
+            <p className="text-slate-600">
+              You've used every domino, but at least one is in the wrong spot.
+            </p>
+            <button
+              onClick={handleCloseErrorModal}
+              className="mt-4 bg-slate-900 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform"
+            >
+              Keep Trying
+            </button>
           </div>
         </Modal>
       )}

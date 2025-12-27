@@ -23,6 +23,8 @@ export const GameBoard = ({
   onRemove,
   onPieceMouseDown,
   activePieceId,
+  invalidRegionIds = [],
+  showErrorIndicators = false,
 }) => {
   const getRegionAt = (r, c) =>
     board.regions.find((reg) =>
@@ -37,6 +39,7 @@ export const GameBoard = ({
 
   return (
     <div className="relative w-full mx-auto select-none">
+      {/* LAYER 1: GRID & BASE (Background) */}
       <div
         className="grid w-full"
         style={{
@@ -78,9 +81,6 @@ export const GameBoard = ({
               borderBottomLeftRadius: !sameBottom && !sameLeft ? radius : "0",
               borderBottomRightRadius: !sameBottom && !sameRight ? radius : "0",
             };
-
-            const isLabelCell =
-              region.labelPosition?.r === r && region.labelPosition?.c === c;
 
             const isOccupied = placements.some((p) => {
               const rot = ((p.rotation % 360) + 360) % 360;
@@ -128,7 +128,6 @@ export const GameBoard = ({
                         radiusBR={!sameBottom && !sameRight}
                       />
                     )}
-
                     {!isOccupied && (
                       <div
                         className="absolute inset-1.5 rounded-xl"
@@ -142,13 +141,7 @@ export const GameBoard = ({
                         </div>
                       </div>
                     )}
-
-                    {isLabelCell && (
-                      <RegionConstraint
-                        constraint={region.constraint}
-                        theme={region.colorTheme}
-                      />
-                    )}
+                    {/* Note: Constraints moved to Layer 3 */}
                   </div>
                 </div>
               </div>
@@ -157,6 +150,7 @@ export const GameBoard = ({
         )}
       </div>
 
+      {/* LAYER 2: DOMINOES */}
       <div className="absolute inset-0 w-full h-full pointer-events-none">
         {placements.map((p) => {
           const domino = availableDominoes.find((d) => d.id === p.dominoId);
@@ -177,9 +171,7 @@ export const GameBoard = ({
                 transform: `rotate(${p.rotation}deg)`,
                 padding: "3px",
               }}
-              // Unified Mouse Down
               onMouseDown={(e) => onPieceMouseDown(e, p.dominoId)}
-              // STOP PROPAGATION HERE TO PREVENT BACKGROUND CLICK LOGIC
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing hover:brightness-105 transition-all">
@@ -188,6 +180,44 @@ export const GameBoard = ({
             </div>
           );
         })}
+      </div>
+
+      {/* LAYER 3: CONSTRAINTS & ERROR DOTS (Always on Top) */}
+      <div className="absolute inset-0 w-full h-full pointer-events-none z-[60]">
+        <div
+          className="grid w-full h-full"
+          style={{
+            gridTemplateColumns: `repeat(${board.cols}, 1fr)`,
+            gridTemplateRows: `repeat(${board.rows}, 1fr)`,
+          }}
+        >
+          {Array.from({ length: board.rows }).map((_, r) =>
+            Array.from({ length: board.cols }).map((_, c) => {
+              const region = getRegionAt(r, c);
+              // Skip if void
+              if (!board.gridShape[r][c] || !region)
+                return <div key={`tag-${r}-${c}`} />;
+
+              const isLabelCell =
+                region.labelPosition?.r === r && region.labelPosition?.c === c;
+              const rid = region.id;
+              const isInvalid =
+                showErrorIndicators && invalidRegionIds.includes(rid);
+
+              return (
+                <div key={`tag-${r}-${c}`} className="relative w-full h-full">
+                  {isLabelCell && (
+                    <RegionConstraint
+                      constraint={region.constraint}
+                      theme={region.colorTheme}
+                      isInvalid={isInvalid}
+                    />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );
