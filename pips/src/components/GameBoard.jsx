@@ -24,7 +24,7 @@ export const GameBoard = ({
   onPieceMouseDown,
   activePieceId,
   invalidRegionIds = [],
-  showErrorIndicators = false,
+  displayedErrorRegions = [],
 }) => {
   const getRegionAt = (r, c) =>
     board.regions.find((reg) =>
@@ -201,8 +201,7 @@ export const GameBoard = ({
               const isLabelCell =
                 region.labelPosition?.r === r && region.labelPosition?.c === c;
               const rid = region.id;
-              const isInvalid =
-                showErrorIndicators && invalidRegionIds.includes(rid);
+              const isInvalid = displayedErrorRegions.includes(rid);
 
               return (
                 <div key={`tag-${r}-${c}`} className="relative w-full h-full">

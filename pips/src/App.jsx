@@ -37,8 +37,9 @@ export default function App() {
 
   // --- VALIDATION STATE ---
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [showErrorIndicators, setShowErrorIndicators] = useState(false);
-  const [invalidRegionIds, setInvalidRegionIds] = useState([]);
+  // CHANGED: Instead of a boolean, we store the IDs of regions that should show a red dot
+  const [displayedErrorRegions, setDisplayedErrorRegions] = useState([]);
+  const [invalidRegionIds, setInvalidRegionIds] = useState([]); // Stores result of last check
 
   const dragStartPos = useRef(null);
   const lastValidRotationRef = useRef({});
@@ -69,7 +70,7 @@ export default function App() {
 
     // Reset Validation
     setShowErrorModal(false);
-    setShowErrorIndicators(false);
+    setDisplayedErrorRegions([]);
     setInvalidRegionIds([]);
 
     setView("game");
@@ -79,14 +80,52 @@ export default function App() {
     startGame();
   };
 
-  // --- CHECK WIN CONDITION ---
+  // --- HELPER: Identify Regions for a Piece ---
+  const getRegionsForPiece = (id) => {
+    if (!board) return [];
+    const placement = gameState.placements.find((p) => p.dominoId === id);
+    if (!placement) return [];
+
+    const { r, c, rotation } = placement;
+    const rot = ((rotation % 360) + 360) % 360;
+
+    let c1 = { r, c };
+    let c2 = { r, c };
+
+    if (rot === 0) c2 = { r, c: c + 1 };
+    if (rot === 90) c2 = { r: r + 1, c };
+    if (rot === 180) c2 = { r, c: c - 1 };
+    if (rot === 270) c2 = { r: r - 1, c };
+
+    const cells = [c1, c2];
+    const affectedRegionIds = new Set();
+
+    cells.forEach((cell) => {
+      // Find which region this cell belongs to
+      const region = board.regions.find((reg) =>
+        reg.cells.some((rc) => rc.r === cell.r && rc.c === cell.c)
+      );
+      if (region) affectedRegionIds.add(region.id);
+    });
+
+    return Array.from(affectedRegionIds);
+  };
+
+  // --- HELPER: Clear Errors for a Specific Piece ---
+  const clearErrorsForPiece = (id) => {
+    const regions = getRegionsForPiece(id);
+    if (regions.length > 0) {
+      setDisplayedErrorRegions((prev) =>
+        prev.filter((rid) => !regions.includes(rid))
+      );
+    }
+  };
+
   const checkWinCondition = (currentPlacements) => {
     if (!board) return;
 
-    // 1. Is board full?
     const totalDominoes = board.initialDominoes.length;
     if (currentPlacements.length === totalDominoes) {
-      // 2. Validate
       const { isComplete, invalidRegionIds: badRegions } = checkCompletion(
         board,
         currentPlacements
@@ -95,7 +134,6 @@ export default function App() {
       if (isComplete) {
         setGameState((prev) => ({ ...prev, isComplete: true }));
       } else {
-        // Board full but wrong -> Show Modal
         setInvalidRegionIds(badRegions);
         setShowErrorModal(true);
       }
@@ -104,7 +142,8 @@ export default function App() {
 
   const handleCloseErrorModal = () => {
     setShowErrorModal(false);
-    setShowErrorIndicators(true); // Show red dots
+    // When modal closes, SHOW all the errors we found
+    setDisplayedErrorRegions(invalidRegionIds);
   };
 
   // --- MOUSE HANDLERS ---
@@ -187,8 +226,10 @@ export default function App() {
     if (e.button !== 0) return;
     e.stopPropagation();
 
-    // INTERACTION CLEARS ERROR DOTS
-    setShowErrorIndicators(false);
+    // SELECTIVE CLEAR: Only clear errors for the region(s) this piece touches
+    if (fromBoard) {
+      clearErrorsForPiece(id);
+    }
 
     commitActivePiece(id);
     dragStartPos.current = { x: e.clientX, y: e.clientY, id, fromBoard };
@@ -212,6 +253,9 @@ export default function App() {
           setActivePieceId(null);
           let startRotation = 0;
           if (fromBoard) {
+            // DRAG START: We already cleared errors on MouseDown, but double check?
+            // Actually MouseDown logic is sufficient.
+
             const placement = gameState.placements.find(
               (p) => p.dominoId === id
             );
@@ -227,9 +271,6 @@ export default function App() {
           setDraggingDominoId(id);
           setDragRotation(startRotation);
           setCursorPos({ x: e.clientX, y: e.clientY });
-
-          // Hide dots if we start dragging
-          setShowErrorIndicators(false);
         }
       }
     },
@@ -277,7 +318,9 @@ export default function App() {
               delete newRotations[draggingDominoId];
               setTrayRotations(newRotations);
 
-              // Check win/errors immediately on drop
+              // We do NOT clear errors here because we might have just placed a piece
+              // that FIXES the error, or CREATES one.
+              // The checkWinCondition will re-evaluate on full board.
               checkWinCondition(nextPlacements);
             }
           }
@@ -344,6 +387,10 @@ export default function App() {
 
   const handleRemove = (id) => {
     if (gameState.isComplete) return;
+
+    // SELECTIVE CLEAR
+    clearErrorsForPiece(id);
+
     const placement = gameState.placements.find((p) => p.dominoId === id);
     const rot = placement ? placement.rotation : 0;
     setGameState((prev) => ({
@@ -352,7 +399,6 @@ export default function App() {
     }));
     setTrayRotations((prev) => ({ ...prev, [id]: rot }));
     if (activePieceId === id) setActivePieceId(null);
-    setShowErrorIndicators(false);
   };
 
   useEffect(() => {
@@ -431,8 +477,8 @@ export default function App() {
               activePieceId={activePieceId}
               onPieceMouseDown={(e, id) => handleMouseDown(e, id, true)}
               onRemove={handleRemove}
-              invalidRegionIds={invalidRegionIds}
-              showErrorIndicators={showErrorIndicators}
+              // Pass the LIST of visible error region IDs
+              displayedErrorRegions={displayedErrorRegions}
             />
           </div>
         </div>
