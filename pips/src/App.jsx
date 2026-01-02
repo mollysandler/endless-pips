@@ -431,7 +431,6 @@ export default function App() {
     >
       <header className="px-6 py-5 flex items-center justify-between sticky top-0 z-30 bg-[#fffaf5]/90 backdrop-blur-sm">
         <div className="flex flex-row items-center gap-3">
-          <img src="/logo.svg" alt="Pips Logo" className="w-12 h-12" />
           <div className="flex flex-col">
             <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">
               PIPS
@@ -460,7 +459,7 @@ export default function App() {
           >
             <IconRestart className="w-5 h-5 mb-0.5 group-hover:-rotate-180 transition-transform duration-500" />
             <span className="text-[10px] uppercase tracking-wider font-bold">
-              Restart
+              New Board
             </span>
           </button>
         </div>
