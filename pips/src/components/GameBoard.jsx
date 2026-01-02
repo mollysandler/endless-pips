@@ -135,11 +135,7 @@ export const GameBoard = ({
                           backgroundColor: "rgba(0,0,0,0.06)",
                           boxShadow: "inset 0 1px 3px rgba(0,0,0,0.15)",
                         }}
-                      >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-black/10" />
-                        </div>
-                      </div>
+                      ></div>
                     )}
                     {/* Note: Constraints moved to Layer 3 */}
                   </div>
